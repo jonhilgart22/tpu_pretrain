@@ -91,7 +91,7 @@ def main():
             loss = outputs[0]
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
-            print(loss.shape, 'loss')
+            
             loss.sum().backward() # for multiple tensors
             tracker.add(args.train_batch_size)
 
@@ -108,8 +108,7 @@ def main():
                     if pbar is not None:
                         pbar.set_description(f"Prev LR: {prev_lr} Curr LR: {curr_lr}")
                 optimizer.zero_grad()
-
-        return tr_loss.item() / step  # `.item()` requires a trip from TPU to CPU, which is very slow. Use it only once per epoch=
+        return tr_loss.sum().item() / step  # `.item()` requires a trip from TPU to CPU, which is very slow. Use it only once per epoch=
 
     for epoch in range(args.start_epoch, args.epochs):
         # Load one training file into memory

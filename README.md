@@ -97,3 +97,43 @@ The performance numbers show that:
 1- TPU v3-8 (the smallest TPU which has 8 cores) is faster than 8 V100 GPUs that have the same amount of memory
 
 2- Running PyTorch on TPUs is still 5x slower than Tensorflow. Switching to the MP interface should reduce this gap. Reaching the same level of performance will likely require some model-specific tuning.
+
+
+## JH Notes
+- Here are the commands I used on colab
+
+
+
+
+- Install requirements
+
+```
+!cd /content/gdrive/My\ Drive/Georgia_Tech_OMSCS/deep_learning/ && git clone https://github.com/allenai/tpu_pretrain.git
+```
+
+```
+!pip install git+https://github.com/kernelmachine/allennlp.git@4ae123d2c3bfb1ea3ce7362cb6c5bca3d094ffa7
+!pip install transformers==2.4.1
+!pip install pytorch-transformers==1.2.0
+```
+
+```
+!pip install cloud-tpu-client==0.10 https://storage.googleapis.com/tpu-pytorch/wheels/torch_xla-1.7-cp36-cp36m-linux_x86_64.whl
+```
+
+```
+VERSION = "20200325"  #@param ["1.5" , "20200325", "nightly"]
+!curl https://raw.githubusercontent.com/pytorch/xla/master/contrib/scripts/env-setup.py -o pytorch-xla-env-setup.py
+!python pytorch-xla-env-setup.py --version $VERSION
+```
+
+
+- Get dataset ready
+```
+!cd /content/gdrive/My\ Drive/Georgia_Tech_OMSCS/deep_learning/tpu_pretrain && python  pytorch_transformers_lm_finetuning/pregenerate_training_data.py  --train_corpus  "data/sentences_150k.txt"  --output data/pregenerated_training_data --bert_model roberta-base  --do_whole_word_mask  --epochs_to_generate 2  --max_seq_len 512  --max_predictions_per_seq 75
+```
+
+- Launch Training
+```
+!cd /content/gdrive/My\ Drive/Georgia_Tech_OMSCS/deep_learning/tpu_pretrain && python  pytorch_transformers_lm_finetuning/pregenerate_training_data.py  --train_corpus  "data/sentences_150k.txt"  --output data/pregenerated_training_data --bert_model roberta-base  --do_whole_word_mask  --epochs_to_generate 2  --max_seq_len 512  --max_predictions_per_seq 75
+```
