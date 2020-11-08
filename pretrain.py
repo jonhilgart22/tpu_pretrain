@@ -6,15 +6,18 @@ import numpy as np
 from tqdm import tqdm
 
 import utils  # Most of the code in adopted from https://github.com/huggingface/pytorch-transformers/blob/master/examples/lm_finetuning/finetune_on_pregenerated.py
-from pytorch_transformers.modeling_auto import AutoModelWithLMHead
+from transformers import AutoModelWithLMHead
 from pytorch_transformers.tokenization_auto import AutoTokenizer
 from pytorch_transformers.optimization import AdamW, WarmupLinearSchedule
 
 from torch.utils.data import DataLoader, RandomSampler
 import torch
 import torch_xla
-import torch_xla_py.xla_model as tpu_xm
-import torch_xla_py.data_parallel as tpu_dp
+import torch_xla.core.xla_model as tpu_xm
+#import torch_xla_py.xla_model as tpu_xm
+import torch_xla.distributed.data_parallel as tpu_dp
+import torch_xla.core.xla_model as xm
+#import torch_xla_py.data_parallel as tpu_dp
 
 from pytorch_transformers.modeling_roberta import RobertaModel
 def RobertaModel_forward(self, input_ids, token_type_ids=None, attention_mask=None, position_ids=None, head_mask=None):
@@ -41,7 +44,8 @@ def main():
     args.start_epoch = utils.prepare_last_checkpoint(args.bert_model)
     model = AutoModelWithLMHead.from_pretrained(args.bert_model)  # Only Masked Language Modeling
     logging.info(f"Saving initial checkpoint to: {args.output_dir}")
-    model.save_pretrained(args.output_dir)
+    #model.save_pretrained(args.output_dir) #TODO: why does this break?
+    #xm.save(model.state_dict(), args.output_dir)
     model = tpu_dp.DataParallel(model, device_ids=devices)
 
     num_data_epochs, num_train_optimization_steps= utils.get_dataset_stats(args, n_tpu)
@@ -80,13 +84,15 @@ def main():
         tracker = tpu_xm.RateTracker()
 
         model.train()
-        for step, batch in loader:
+
+        for step, batch in enumerate(loader):
             input_ids, input_mask, segment_ids, lm_label_ids, _ = batch
             outputs = model(input_ids, segment_ids, input_mask, lm_label_ids)
             loss = outputs[0]
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
-            loss.backward()
+            print(loss.shape, 'loss')
+            loss.sum().backward() # for multiple tensors
             tracker.add(args.train_batch_size)
 
             tr_loss = loss * args.gradient_accumulation_steps if step == 0 else  tr_loss + loss * args.gradient_accumulation_steps
